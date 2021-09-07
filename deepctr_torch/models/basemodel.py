@@ -244,7 +244,7 @@ class BaseModel(nn.Module):
                         y_pred = model(x).squeeze()
 
                         optim.zero_grad()
-                        loss = loss_func(y_pred, y.squeeze(), reduction='sum')
+                        loss = loss_func(y_pred, y.squeeze())
                         reg_loss = self.get_regularization_loss()
 
                         total_loss = loss + reg_loss + self.aux_loss
