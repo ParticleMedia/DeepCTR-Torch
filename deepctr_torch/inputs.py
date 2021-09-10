@@ -13,6 +13,7 @@ import numpy as np
 
 from .layers.sequence import SequencePoolingLayer
 from .layers.utils import concat_fun
+from .layers import DNN
 
 DEFAULT_GROUP_NAME = "default_group"
 
@@ -87,6 +88,23 @@ class DenseFeat(namedtuple('DenseFeat', ['name', 'dimension', 'dtype'])):
         return self.name.__hash__()
 
 
+class DenseEmbeddingFeat(namedtuple('DenseEmbeddingFeat', ['name', 'dimension', 'embedding_dim', 'hidden_units', 'dtype'])):
+    __slots__ = ()
+
+    def __new__(cls, name, dimension=1, embedding_dim=4, hidden_units=[], dtype="float32"):
+        return super(DenseEmbeddingFeat, cls).__new__(cls, name, dimension, embedding_dim, hidden_units, dtype)
+
+    def __hash__(self):
+        return self.name.__hash__()
+
+    def generate_embedding_dnn(self, dnn_activation, l2_reg_dnn, dnn_dropout, dnn_use_bn, init_std, device):
+        if self.dimension == self.embedding_dim:
+            return nn.Identity()
+        return DNN(self.dimension, self.hidden_units + [self.embedding_dim],
+                           activation=dnn_activation, l2_reg=l2_reg_dnn, dropout_rate=dnn_dropout, use_bn=dnn_use_bn,
+                           init_std=init_std, device=device)
+
+
 def get_feature_names(feature_columns):
     features = build_input_features(feature_columns)
     return list(features.keys())
@@ -110,6 +128,9 @@ def build_input_features(feature_columns):
             features[feat_name] = (start, start + 1)
             start += 1
         elif isinstance(feat, DenseFeat):
+            features[feat_name] = (start, start + feat.dimension)
+            start += feat.dimension
+        elif isinstance(feat, DenseEmbeddingFeat):
             features[feat_name] = (start, start + feat.dimension)
             start += feat.dimension
         elif isinstance(feat, VarLenSparseFeat):

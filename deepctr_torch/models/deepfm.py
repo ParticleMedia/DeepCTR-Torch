@@ -9,7 +9,7 @@ import torch
 import torch.nn as nn
 
 from .basemodel import BaseModel
-from ..inputs import combined_dnn_input
+from ..inputs import combined_dnn_input, DenseEmbeddingFeat
 from ..layers import FM, DNN
 
 
@@ -49,6 +49,18 @@ class DeepFM(BaseModel):
         self.use_fm = use_fm
         self.use_dnn = len(dnn_feature_columns) > 0 and len(
             dnn_hidden_units) > 0
+
+        dense_emb_feature_columns = list(
+            filter(lambda x: isinstance(x, DenseEmbeddingFeat), dnn_feature_columns)) if len(dnn_feature_columns) else []
+        self.dense_emb_dnns = dict(map(
+            lambda x: (x.name, x.generate_embedding_dnn(dnn_activation, l2_reg_embedding, dnn_dropout, dnn_use_bn, init_std, device)), 
+            dense_emb_feature_columns
+        ))
+        for _, emb_dnn in self.dense_emb_dnns.items():
+            if isinstance(emb_dnn, DNN):
+                self.add_regularization_weight(
+                    filter(lambda x: 'weight' in x[0] and 'bn' not in x[0], emb_dnn.named_parameters()), l2=l2_reg_dnn)
+        
         if use_fm:
             self.fm = FM()
 
@@ -69,6 +81,11 @@ class DeepFM(BaseModel):
         sparse_embedding_list, dense_value_list = self.input_from_feature_columns(X, self.dnn_feature_columns,
                                                                                   self.embedding_dict)
         logit = self.linear_model(X)
+        for feat in self.dnn_feature_columns:
+            if isinstance(feat, DenseEmbeddingFeat):
+                emb_dnn = self.dense_emb_dnns[feat.name]
+                emb_output = emb_dnn(X[:, self.feature_index[feat.name][0]:self.feature_index[feat.name][1]])
+                sparse_embedding_list.append(torch.reshape(emb_output, (-1, 1, feat.embedding_dim)))
 
         if self.use_fm and len(sparse_embedding_list) > 0:
             fm_input = torch.cat(sparse_embedding_list, dim=1)
