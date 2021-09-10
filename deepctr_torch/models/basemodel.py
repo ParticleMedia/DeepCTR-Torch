@@ -23,7 +23,7 @@ try:
 except ImportError:
     from tensorflow.python.keras._impl.keras.callbacks import CallbackList
 
-from ..inputs import build_input_features, SparseFeat, DenseFeat, VarLenSparseFeat, get_varlen_pooling_list, \
+from ..inputs import build_input_features, SparseFeat, DenseFeat, VarLenSparseFeat, DenseEmbeddingFeat, get_varlen_pooling_list, \
     create_embedding_matrix, varlen_embedding_lookup
 from ..layers import PredictionLayer
 from ..layers.utils import slice_arrays
@@ -378,9 +378,13 @@ class BaseModel(nn.Module):
             feature_columns) else []
         dense_feature_columns = list(
             filter(lambda x: isinstance(x, DenseFeat), feature_columns)) if len(feature_columns) else []
+        dense_emb_feature_columns = list(
+            filter(lambda x: isinstance(x, DenseEmbeddingFeat), feature_columns)) if len(feature_columns) else []
 
         dense_input_dim = sum(
             map(lambda x: x.dimension, dense_feature_columns))
+        dense_emb_input_dim = sum(
+            map(lambda x: x.embedding_dim, dense_emb_feature_columns))
         if feature_group:
             sparse_input_dim = len(sparse_feature_columns)
         else:
@@ -390,6 +394,7 @@ class BaseModel(nn.Module):
             input_dim += sparse_input_dim
         if include_dense:
             input_dim += dense_input_dim
+            input_dim += dense_emb_input_dim
         return input_dim
 
     def add_regularization_weight(self, weight_list, l1=0.0, l2=0.0):
