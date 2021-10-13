@@ -54,7 +54,7 @@ class DeepFM(BaseModel):
             filter(lambda x: isinstance(x, DenseEmbeddingFeat), dnn_feature_columns)) if len(dnn_feature_columns) else []
         if len(self.dense_emb_feature_columns) > 0:
             self.dense_emb_dnns = nn.ModuleDict(dict(map(
-                lambda x: (x.name, x.generate_embedding_dnn(dnn_activation, l2_reg_embedding, dnn_dropout, dnn_use_bn, init_std, device)), 
+                lambda x: (x.name, x.generate_embedding_dnn(dnn_activation, l2_reg_dnn, dnn_dropout, dnn_use_bn, init_std, device)),
                 self.dense_emb_feature_columns
             )))
             for _, emb_dnn in self.dense_emb_dnns.items():
