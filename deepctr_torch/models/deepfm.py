@@ -50,16 +50,17 @@ class DeepFM(BaseModel):
         self.use_dnn = len(dnn_feature_columns) > 0 and len(
             dnn_hidden_units) > 0
 
-        dense_emb_feature_columns = list(
+        self.dense_emb_feature_columns = list(
             filter(lambda x: isinstance(x, DenseEmbeddingFeat), dnn_feature_columns)) if len(dnn_feature_columns) else []
-        self.dense_emb_dnns = dict(map(
-            lambda x: (x.name, x.generate_embedding_dnn(dnn_activation, l2_reg_embedding, dnn_dropout, dnn_use_bn, init_std, device)), 
-            dense_emb_feature_columns
-        ))
-        for _, emb_dnn in self.dense_emb_dnns.items():
-            if isinstance(emb_dnn, DNN):
-                self.add_regularization_weight(
-                    filter(lambda x: 'weight' in x[0] and 'bn' not in x[0], emb_dnn.named_parameters()), l2=l2_reg_dnn)
+        if len(self.dense_emb_feature_columns) > 0:
+            self.dense_emb_dnns = nn.ModuleDict(dict(map(
+                lambda x: (x.name, x.generate_embedding_dnn(dnn_activation, l2_reg_dnn, dnn_dropout, dnn_use_bn, init_std, device)),
+                self.dense_emb_feature_columns
+            )))
+            for _, emb_dnn in self.dense_emb_dnns.items():
+                if isinstance(emb_dnn, DNN):
+                    self.add_regularization_weight(
+                        filter(lambda x: 'weight' in x[0] and 'bn' not in x[0], emb_dnn.named_parameters()), l2=l2_reg_dnn)
         
         if use_fm:
             self.fm = FM()
